@@ -45,7 +45,7 @@ For instance, "0.png" looks like this:
 
 <img src="0.png" width="600px"/>
 
-where in the left half T1- and T2-weighted images are in the Red and Green channels respectively, and in the left half FLAIR images are in the Red channel.
+where in the left half T1- and T2-weighted images are in the Red and Green channels respectively, and in the right half FLAIR images are in the Green channel.
 
 ## Federated training of pFLSynth
 
