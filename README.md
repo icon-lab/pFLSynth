@@ -5,8 +5,8 @@ Onat Dalmaz, Usama Mirza, Gökberk Elmas, Muzaffer Özbey, Salman UH Dar, Emir C
 
 <img src="main_fig.png" width="600px"/>
 <img src="main_generator.png" width="600px"/>
-## Dependencies
 
+## Dependencies
 ```
 python>=3.6.9
 torch>=1.7.1
