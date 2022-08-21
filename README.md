@@ -1,7 +1,7 @@
 # pFLSynth
 Official Pytorch Implementation of personalized Federated Learning of MRI Synthesis(pFLSynth) which is described in the [following](https://arxiv.org/abs/2207.06509) paper:
 
-Onat Dalmaz, Usama Mirza, Gökberk Elmas, Muzaffer Özbey, Salman UH Dar, Emir Ceyani, Salman Avestimehr, Tolga Çukur One Model to Unite Them All: Personalized Federated Learning of Multi-Contrast MRI Synthesis.  ArXiV. 2022.
+One Model to Unite Them All: Personalized Federated Learning of Multi-Contrast MRI Synthesis. Onat Dalmaz, Usama Mirza, Gökberk Elmas, Muzaffer Özbey, Salman UH Dar, Emir Ceyani, Salman Avestimehr, Tolga Çukur. ArXiV. 2022.
 
 <img src="main_fig.png" width="600px"/>
 <img src="main_generator.png" width="600px"/>
