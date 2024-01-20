@@ -22,7 +22,63 @@ git clone https://github.com/icon-lab/pFLSynth
 cd pFLSynth
 ```
 
-## Dataset
+# Data Preprocessing
+
+This section details the steps required to preprocess the imaging data before it can be used for analysis. Each preprocessing step is encapsulated in its script, which can be found in the [scripts](/path/to/scripts/folder) directory.
+
+## Registration
+
+Image registration is a crucial step in the preprocessing pipeline, where different MRI sequences are aligned to a common space. The `register_sequences.py` script performs this task.
+
+### Prerequisites
+
+- FSL (FMRIB Software Library) must be installed on your system. You can download it from [FSL's official website](https://fsl.fmrib.ox.ac.uk/fsl/fslwiki).
+- Python 3.x must be installed on your system.
+
+### Usage
+
+To use the registration script, you need to set up the input and output paths according to your dataset's structure. Open the `register_sequences.py` script in your favorite text editor and follow the `# TODO` comments to customize the paths and sequence names.
+
+### Demo
+
+Here is a demo of how to configure and run the `register_sequences.py` script.
+
+1. Set the dataset root path where your MRI sequences are located:
+
+    ```python
+    # TODO: Replace with the path to the dataset's root directory
+    dataset_root_path = "/path/to/dataset/root/"
+    ```
+
+2. Set the output path where the registered volumes will be saved:
+
+    ```python
+    # TODO: Replace with the path to the output directory for the registered volumes
+    output_root_path = "/path/to/output/root/"
+    ```
+
+3. Customize the sequence names based on your dataset:
+
+    ```python
+    # TODO: Customize the MRI sequence names as per your dataset
+    sequences = {
+        'T1': 'T1w',  # Example: 'T1w' or 'T1_weighted'
+        'T2': 'T2w',  # Example: 'T2w' or 'T2_weighted'
+        'T2_FLAIR': 'FLAIR',  # Example: 'FLAIR' or 'PD' or 'T2_FLAIR'
+        # Add or remove sequences as needed
+    }
+    ```
+
+4. Run the script:
+
+    ```bash
+    python register_sequences.py
+    ```
+
+The script will process each subject sequentially, registering the specified sequences to the T1-weighted images and saving the results in the output directory.
+
+
+<!-- ## Dataset
 You should structure your aligned dataset in the following way:
 ```
 /Datasets/BRATS/
@@ -45,7 +101,7 @@ For instance, "0.png" looks like this:
 
 <img src="0.png" width="600px"/>
 
-where in the left half T1- and T2-weighted images are in the Red and Green channels respectively, and in the right half FLAIR images are in the Green channel.
+where in the left half T1- and T2-weighted images are in the Red and Green channels respectively, and in the right half FLAIR images are in the Green channel. -->
 
 ## Federated training of pFLSynth
 
