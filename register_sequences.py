@@ -10,7 +10,7 @@ output_root_path = "/path/to/output/root/"
 sequences = {
     'T1': 'T1w',  # Example: 'T1w' or 'T1_weighted'
     'T2': 'T2w',  # Example: 'T2w' or 'T2_weighted'
-    'T2_FLAIR': 'FLAIR',  # Example: 'FLAIR' or 'PD' or 'T2_FLAIR'
+    'FLAIR': 'FLAIR',  # Example: 'FLAIR' or 'PD' or 'T2_FLAIR'
     # Add or remove sequences as needed
 }
 

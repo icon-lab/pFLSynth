@@ -24,11 +24,11 @@ cd pFLSynth
 
 # Data Preprocessing
 
-This section details the steps required to preprocess the imaging data before it can be used for analysis. Each preprocessing step is encapsulated in its script, which can be found in the [scripts](/path/to/scripts/folder) directory.
+This section details the steps required to preprocess the imaging data before it can be used for analysis.
 
 ## Registration
 
-Image registration is a crucial step in the preprocessing pipeline, where different MRI sequences are aligned to a common space. The `register_sequences.py` script performs this task.
+In this step, different MRI sequences are aligned to a common space. The `register_sequences.py` script performs this task.
 
 ### Prerequisites
 
@@ -37,7 +37,7 @@ Image registration is a crucial step in the preprocessing pipeline, where differ
 
 ### Usage
 
-To use the registration script, you need to set up the input and output paths according to your dataset's structure. Open the `register_sequences.py` script in your favorite text editor and follow the `# TODO` comments to customize the paths and sequence names.
+To use the registration script, you need to set up the input and output paths according to the downloaded dataset's structure. Open the `register_sequences.py` script in your favorite text editor and follow the `# TODO` comments to customize the paths and sequence names.
 
 ### Demo
 
@@ -76,6 +76,41 @@ Here is a demo of how to configure and run the `register_sequences.py` script.
     ```
 
 The script will process each subject sequentially, registering the specified sequences to the T1-weighted images and saving the results in the output directory.
+
+## Converting NIfTI to PNG
+
+After completing the registration process, the next step in the pipeline is to convert the NIfTI files into PNG format. This conversion process takes each slice of the 3D MRI data and saves it as a 2D cross-section. The `process_nii_to_png.py` script automates this task.
+
+### Usage
+
+To use this script, you need to specify the input directory (where the NIfTI files are stored) and the output directory (where the PNG files will be saved).
+
+1. Set the input directory in the script:
+
+    ```python
+    # TODO: Set your input directory containing NIfTI files
+    input_directory = "/path/to/input/directory"
+    ```
+
+2. Set the output directory for the PNG files:
+
+    ```python
+    # TODO: Set your output directory for PNG files
+    output_directory = "/path/to/output/directory"
+    ```
+
+3. Run the script:
+
+    ```bash
+    python process_nii_to_png.py
+    ```
+
+This will process each NIfTI file, converting it into a series of 2D PNG images, each representing a slice from the 3D MRI data. The script organizes these PNG images into folders corresponding to their original NIfTI file names.
+
+### Note
+
+- It is advisable to have a backup of the original NIfTI files before running this script, as it involves reading and processing significant amounts of data.
+- Ensure that the input and output directories are set correctly to avoid any unintended data loss.
 
 
 <!-- ## Dataset
