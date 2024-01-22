@@ -112,6 +112,41 @@ This will process each NIfTI file, converting it into a series of 2D PNG images,
 - It is advisable to have a backup of the original NIfTI files before running this script, as it involves reading and processing significant amounts of data.
 - Ensure that the input and output directories are set correctly to avoid any unintended data loss.
 
+## Combining Contrast Images into a Single Image
+
+Following the preprocessing steps, we combine the PNG images of individual contrasts (T1, T2, FLAIR) into a single composite image where each contrast is represented in a separate color channel.
+
+### Usage
+
+To perform the combination of contrast images, run the `combine_contrasts.py` script, which takes the T1, T2, and FLAIR images and combines them into a single RGB image with transparency. The resulting images are saved to the specified output directory.
+
+1. Set the input directory where individual contrast PNG images are located:
+
+    ```python
+    # TODO: Set the path where the PNG images are stored
+    input_directory = "/auto/data2/umirza/OASIS_png/"
+    ```
+
+2. Set the output directory where the combined images will be saved:
+
+    ```python
+    # TODO: Set the path where the combined images will be saved
+    output_directory = "/auto/data2/umirza/OASIS_full/"
+    ```
+
+3. Run the script:
+
+    ```bash
+    python combine_contrasts.py
+    ```
+
+Each saved image will have T1, T2, and FLAIR contrasts combined, facilitating the visualization of differences between contrasts in the same slice.
+
+### Note
+
+- Ensure that each contrast directory within the input directory contains the same number of corresponding slices.
+- The script will create the output directory if it does not exist, and it will overwrite existing files with the same name without warning.
+
 
 <!-- ## Dataset
 You should structure your aligned dataset in the following way:
