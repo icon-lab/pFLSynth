@@ -7,10 +7,6 @@ from torch.optim import lr_scheduler
 from collections import OrderedDict
 import numpy as np
 import torch.nn.functional as F
-from performer_pytorch import CrossAttention
-###############################################################################
-# Functions
-###############################################################################
 
 
 def weights_init_normal(m):
@@ -115,13 +111,27 @@ def define_G(input_nc, output_nc, ngf, which_model_netG, norm='batch', use_dropo
     if which_model_netG == 'personalized_generator':
         netG = personalized_generator(input_nc, output_nc, ngf, norm_layer=norm_layer, use_dropout=use_dropout, n_blocks=9,
                                 gpu_ids=gpu_ids,n_clients=n_clients,mapping_layers = mapping_layers,n_contrasts=4)
+    
+    elif which_model_netG == 'unet_fedmm':
+        netG =Unet_mmGAN(in_chans=2,out_chans=2)
+
+    elif which_model_netG == 'resnet_generator':
+        netG = resnet_generator(input_nc, output_nc, ngf, norm_layer=norm_layer, use_dropout=use_dropout, n_blocks=9,
+                                gpu_ids=gpu_ids)
+
+    elif which_model_netG == 'unet_generator':
+        netG = Unet()
+
+    elif which_model_netG == 'switchable_unet':
+        netG = switchable_Unet()
+
     else:
         raise NotImplementedError('Generator model name [%s] is not recognized' % which_model_netG)
 
     if len(gpu_ids) > 0:
         netG.cuda(gpu_ids[0])
-
-    init_weights(netG, init_type=init_type)
+    if not which_model_netG == 'unet_fedmm' and not which_model_netG == 'unet_generator' and not which_model_netG == 'switchable_unet':
+        init_weights(netG, init_type=init_type)
     return netG
 
 
@@ -545,7 +555,6 @@ class StyleMod(nn.Module):
 
 
 class AdaIN(nn.Module):
-    """Things to do at the end of each layer."""
 
     def __init__(self, channels, dlatent_size, use_instance_norm, use_styles):
         super().__init__()
@@ -589,7 +598,197 @@ class ShiftLayer(nn.Module):
 
 
 
+class Unet_mmGAN(nn.Module):
+    """
+    PyTorch implementation of a U-Net model.
+    O. Ronneberger, P. Fischer, and Thomas Brox. U-net: Convolutional networks
+    for biomedical image segmentation. In International Conference on Medical
+    image computing and computer-assisted intervention, pages 234–241.
+    Springer, 2015.
+    """
 
+    def __init__(
+        self,
+        in_chans: int=2,
+        out_chans: int=2,
+        chans: int = 32,
+        num_pool_layers: int = 4,
+        drop_prob: float = 0.0,
+    ):
+        """
+        Args:
+            in_chans: Number of channels in the input to the U-Net model.
+            out_chans: Number of channels in the output to the U-Net model.
+            chans: Number of output channels of the first convolution layer.
+            num_pool_layers: Number of down-sampling and up-sampling layers.
+            drop_prob: Dropout probability.
+        """
+        super().__init__()
+
+        self.in_chans = in_chans
+        self.out_chans = out_chans
+        self.chans = chans
+        self.num_pool_layers = num_pool_layers
+        self.drop_prob = drop_prob
+        self.tanh = nn.Tanh()
+        # self.first_layer = ConvBlock(in_chans, chans, drop_prob)
+        self.down_sample_layers =nn.ModuleList([ConvBlock(in_chans, chans, drop_prob)])
+        ch = chans
+        for _ in range(num_pool_layers - 1):
+            self.down_sample_layers.append(ConvBlock(ch, ch * 2, drop_prob))
+            ch *= 2
+        self.conv = ConvBlock(ch, ch * 2, drop_prob)
+
+        self.up_conv = nn.ModuleList()
+        self.up_transpose_conv = nn.ModuleList()
+        for _ in range(num_pool_layers - 1):
+            self.up_transpose_conv.append(TransposeConvBlock(ch * 2, ch))
+            self.up_conv.append(ConvBlock(ch * 2, ch, drop_prob))
+            ch //= 2
+
+        self.up_transpose_conv.append(TransposeConvBlock(ch * 2, ch))
+        self.up_conv.append(
+            nn.Sequential(
+                ConvBlock(ch * 2, ch, drop_prob),
+                nn.Conv2d(ch, self.out_chans, kernel_size=1, stride=1),
+            )
+        
+        )
+
+
+    def forward(self, image: torch.Tensor, latent,direction) -> torch.Tensor:
+        """
+        Args:
+            image: Input 4D tensor of shape `(N, in_chans, H, W)`.
+        Returns:
+            Output tensor of shape `(N, out_chans, H, W)`.
+        """
+        output = image
+
+        if direction:
+            output = torch.cat([output, output], dim=1)
+            output[:,1] = -1
+        else:
+            output = torch.cat([output, output], dim=1)
+            output[:,0] = -1
+        stack = []
+        
+        # output = self.first_layer(output)
+        # stack.append(output)
+        #first layer
+
+
+        # apply down-sampling layers
+        for layer in self.down_sample_layers:
+            output = layer(output)
+            stack.append(output)
+            output = F.avg_pool2d(output, kernel_size=2, stride=2, padding=0)
+
+        output = self.conv(output)
+
+        # apply up-sampling layers
+        for transpose_conv, conv in zip(self.up_transpose_conv, self.up_conv):
+            downsample_layer = stack.pop()
+            output = transpose_conv(output)
+
+            # reflect pad on the right/botton if needed to handle odd input dimensions
+            padding = [0, 0, 0, 0]
+            if output.shape[-1] != downsample_layer.shape[-1]:
+                padding[1] = 1  # padding right
+            if output.shape[-2] != downsample_layer.shape[-2]:
+                padding[3] = 1  # padding bottom
+            if torch.sum(torch.tensor(padding)) != 0:
+                output = F.pad(output, padding, "reflect")
+
+            output = torch.cat([output, downsample_layer], dim=1)
+            output = conv(output)
+
+        output = self.tanh(output)
+
+        if direction:
+            output = output[:,1]
+        else:
+            output = output[:,0]
+        output = torch.unsqueeze(output, 1)
+        return output
+
+
+class ConvBlock(nn.Module):
+    """
+    A Convolutional Block that consists of two convolution layers each followed by
+    instance normalization, LeakyReLU activation and dropout.
+    """
+
+    def __init__(self, in_chans: int, out_chans: int, drop_prob: float):
+        """
+        Args:
+            in_chans: Number of channels in the input.
+            out_chans: Number of channels in the output.
+            drop_prob: Dropout probability.
+        """
+        super().__init__()
+
+        self.in_chans = in_chans
+        self.out_chans = out_chans
+        self.drop_prob = drop_prob
+
+        self.layers = nn.Sequential(
+            nn.Conv2d(in_chans, out_chans, kernel_size=3, padding=1, bias=False),
+            nn.InstanceNorm2d(out_chans),
+            # nn.BatchNorm2d(out_chans),
+            nn.LeakyReLU(negative_slope=0.2, inplace=True),
+            nn.Dropout2d(drop_prob),
+            nn.Conv2d(out_chans, out_chans, kernel_size=3, padding=1, bias=False),
+            nn.InstanceNorm2d(out_chans),
+            # nn.BatchNorm2d(out_chans),
+            nn.LeakyReLU(negative_slope=0.2, inplace=True),
+            nn.Dropout2d(drop_prob),
+        )
+
+    def forward(self, image: torch.Tensor) -> torch.Tensor:
+        """
+        Args:
+            image: Input 4D tensor of shape `(N, in_chans, H, W)`.
+        Returns:
+            Output tensor of shape `(N, out_chans, H, W)`.
+        """
+        return self.layers(image)
+
+
+class TransposeConvBlock(nn.Module):
+    """
+    A Transpose Convolutional Block that consists of one convolution transpose
+    layers followed by instance normalization and LeakyReLU activation.
+    """
+
+    def __init__(self, in_chans: int, out_chans: int):
+        """
+        Args:
+            in_chans: Number of channels in the input.
+            out_chans: Number of channels in the output.
+        """
+        super().__init__()
+
+        self.in_chans = in_chans
+        self.out_chans = out_chans
+
+        self.layers = nn.Sequential(
+            nn.ConvTranspose2d(
+                in_chans, out_chans, kernel_size=2, stride=2, bias=False
+            ),
+           nn.InstanceNorm2d(out_chans),
+           # nn.BatchNorm2d(out_chans),
+            nn.LeakyReLU(negative_slope=0.2, inplace=True),
+        )
+
+    def forward(self, image: torch.Tensor) -> torch.Tensor:
+        """
+        Args:
+            image: Input 4D tensor of shape `(N, in_chans, H, W)`.
+        Returns:
+            Output tensor of shape `(N, out_chans, H*2, W*2)`.
+        """
+        return self.layers(image)
 
 # Defines the PatchGAN discriminator with the specified arguments.
 class NLayerDiscriminator(nn.Module):
@@ -643,3 +842,382 @@ class NLayerDiscriminator(nn.Module):
             print(self.model(input).size())
             return self.model(input)
 
+
+class resnet_generator(nn.Module):
+    def __init__(self, input_nc, output_nc, ngf=64, norm_layer=nn.BatchNorm2d, use_dropout=False, n_blocks=6,
+                 gpu_ids=[], padding_type='reflect', down_samp=1, fusion_layer_level=1):
+        assert (n_blocks >= 0)
+        super(resnet_generator, self).__init__()
+        self.input_nc = input_nc
+        self.output_nc = output_nc
+        self.ngf = ngf
+        self.gpu_ids = gpu_ids
+        self.down_samp = down_samp
+        self.fusion_layer_level = fusion_layer_level
+        if type(norm_layer) == functools.partial:
+            use_bias = norm_layer.func == nn.InstanceNorm2d
+        else:
+            use_bias = norm_layer == nn.InstanceNorm2d
+
+        ############################################################################################
+        # Layer1-Encoder1
+        self.pad1 = nn.ReflectionPad2d(3)
+        self.conv1 = nn.Conv2d(input_nc, ngf, kernel_size=7, padding=0,bias=use_bias)
+        self.norm1_1 = norm_layer(ngf)
+        self.norm1_2 = norm_layer(ngf)
+        self.relu = nn.ReLU(True)
+        n_downsampling = 2
+        i = 0
+        mult = 2 ** i
+        self.conv2 = nn.Conv2d(ngf * mult, ngf * mult * 2, kernel_size=3,stride=2, padding=1, bias=use_bias)
+        self.norm2_1 = norm_layer(ngf * mult * 2)
+        self.norm2_2 = norm_layer(ngf * mult * 2)
+        i = 1
+        mult = 2 ** i
+        self.conv3 = nn.Conv2d(ngf * mult, ngf * mult * 2, kernel_size=3,stride=2, padding=1, bias=use_bias)
+        self.norm3_1 = norm_layer(ngf * mult * 2)
+        self.norm3_2 = norm_layer(ngf * mult * 2)
+
+        mult = 2 ** n_downsampling
+        self.model_4 = ResnetBlock_two_norms(ngf * mult, padding_type=padding_type, norm_layer=norm_layer, use_dropout=True,use_bias=use_bias)
+        self.model_5 = ResnetBlock_two_norms(ngf * mult, padding_type=padding_type, norm_layer=norm_layer, use_dropout=True,use_bias=use_bias)
+        self.model_6 = ResnetBlock_two_norms(ngf * mult, padding_type=padding_type, norm_layer=norm_layer, use_dropout=True,use_bias=use_bias)
+        self.model_7 = ResnetBlock_two_norms(ngf * mult, padding_type=padding_type, norm_layer=norm_layer, use_dropout=True,use_bias=use_bias)
+        self.model_8 = ResnetBlock_two_norms(ngf * mult, padding_type=padding_type, norm_layer=norm_layer, use_dropout=True,use_bias=use_bias)
+        self.model_9 = ResnetBlock_two_norms(ngf * mult, padding_type=padding_type, norm_layer=norm_layer, use_dropout=True,use_bias=use_bias)
+        self.model_10 = ResnetBlock_two_norms(ngf * mult, padding_type=padding_type, norm_layer=norm_layer, use_dropout=True,use_bias=use_bias)
+        self.model_11 = ResnetBlock_two_norms(ngf * mult, padding_type=padding_type, norm_layer=norm_layer, use_dropout=True,use_bias=use_bias)
+        self.model_12 = ResnetBlock_two_norms(ngf * mult, padding_type=padding_type, norm_layer=norm_layer, use_dropout=True,use_bias=use_bias)
+    
+
+    # ############################################################################################
+        i = 0
+        mult = 2 ** (n_downsampling - i)
+        self.conv13 = nn.ConvTranspose2d(ngf * mult, int(ngf * mult / 2),
+                                    kernel_size=3, stride=2,
+                                    padding=1, output_padding=1,
+                                    bias=use_bias)
+        self.norm13_1 = norm_layer(int(ngf * mult / 2))
+        self.norm13_2 = norm_layer(int(ngf * mult / 2))
+        i = 1
+        mult = 2 ** (n_downsampling - i)
+        self.conv14 = nn.ConvTranspose2d(ngf * mult, int(ngf * mult / 2),
+                                    kernel_size=3, stride=2,
+                                    padding=1, output_padding=1,
+                                    bias=use_bias)
+        self.norm14_1 = norm_layer(int(ngf * mult / 2))
+        self.norm14_2 = norm_layer(int(ngf * mult / 2))
+
+        self.pad15 = nn.ReflectionPad2d(3)
+        self.conv15 = nn.Conv2d(ngf, output_nc, kernel_size=7, padding=0,bias=use_bias)
+        self.bias15_1 = torch.Tensor(1, 256, 256)
+        self.bias15_1 = nn.Parameter(nn.init.xavier_uniform_(self.bias15_1))
+        self.bias15_2 = torch.Tensor(1, 256, 256)
+        self.bias15_2 = nn.Parameter(nn.init.xavier_uniform_(self.bias15_1))
+        self.tanh15 = nn.Tanh()
+
+
+    def forward(self, input,direction=True,latent =True):
+
+        direction=True
+        #encoder
+        #model_1
+        x = self.pad1(input) 
+        x = self.conv1(x)
+        if direction:
+           x = self.norm1_1(x)
+        else:
+           x = self.norm1_2(x)
+        x = self.relu(x)
+        #model_2
+        x = self.conv2(x)
+        if direction:
+           x = self.norm2_1(x)
+        else:
+           x = self.norm2_2(x)
+        x = self.relu(x)
+        #model_3
+        x = self.conv3(x)
+        if direction:
+           x = self.norm3_1(x)
+        else:
+           x = self.norm3_2(x)
+        x = self.relu(x)
+        #residual blocks
+
+        x = self.model_4(x,direction)
+        x = self.model_5(x,direction)
+        x = self.model_6(x,direction)
+        x = self.model_7(x,direction)
+        x = self.model_8(x,direction)
+        x = self.model_9(x,direction)
+        x = self.model_10(x,direction)
+        x = self.model_11(x,direction)
+        x = self.model_12(x,direction)
+        #model_13
+        x = self.conv13(x)
+        if direction:
+           x = self.norm13_1(x)
+        else:
+           x = self.norm13_2(x)
+        x = self.relu(x)
+        #model_14
+        x = self.conv14(x)
+        if direction:
+           x = self.norm14_1(x)
+        else:
+           x = self.norm14_2(x)
+        x = self.relu(x)
+        #model_15
+        x = self.pad15(x)
+        x = self.conv15(x)
+        if direction:
+           x = x + self.bias15_1
+        else:
+           x = x + self.bias15_2
+        x = self.tanh15(x)
+        return x
+class ResnetBlock_two_norms(nn.Module):
+    def __init__(self, dim, padding_type, norm_layer, use_dropout, use_bias):
+        super(ResnetBlock_two_norms, self).__init__()
+        p = 0
+        self.pad_1 = nn.ReflectionPad2d(1)
+        self.conv_1 = nn.Conv2d(dim, dim, kernel_size=3, padding=p, bias=use_bias)
+        self.bn1_1 = norm_layer(dim)
+        self.bn1_2 = norm_layer(dim)
+        self.relu = nn.ReLU(True)
+        self.dropout = nn.Dropout(0.5)
+        self.pad_2 = nn.ReflectionPad2d(1)
+        self.conv_2 = nn.Conv2d(dim, dim, kernel_size=3, padding=p, bias=use_bias)
+        self.bn2_1 = norm_layer(dim)
+        self.bn2_2 = norm_layer(dim)
+    
+    def forward(self, x, direction):
+        out = self.pad_1(x)
+        out = self.conv_1(out)
+        if direction:
+            out=self.bn1_1(out)
+        else:
+            out=self.bn1_2(out)
+        out = self.relu(out)
+        out = self.dropout(out)
+        out = self.pad_2(out)
+        out= self.conv_2(out)
+        if direction:
+            out=self.bn2_1(out)
+        else:
+            out=self.bn2_2(out)
+        out = x + out
+        return out
+
+class Unet(nn.Module):
+    """
+    PyTorch implementation of a U-Net model.
+    O. Ronneberger, P. Fischer, and Thomas Brox. U-net: Convolutional networks
+    for biomedical image segmentation. In International Conference on Medical
+    image computing and computer-assisted intervention, pages 234–241.
+    Springer, 2015.
+    """
+
+    def __init__(
+        self,
+        in_chans: int=1,
+        out_chans: int=1,
+        chans: int = 32,
+        num_pool_layers: int = 4,
+        drop_prob: float = 0.0,
+    ):
+        """
+        Args:
+            in_chans: Number of channels in the input to the U-Net model.
+            out_chans: Number of channels in the output to the U-Net model.
+            chans: Number of output channels of the first convolution layer.
+            num_pool_layers: Number of down-sampling and up-sampling layers.
+            drop_prob: Dropout probability.
+        """
+        super().__init__()
+
+        self.in_chans = in_chans
+        self.out_chans = out_chans
+        self.chans = chans
+        self.num_pool_layers = num_pool_layers
+        self.drop_prob = drop_prob
+        self.tanh = nn.Tanh()
+        self.down_sample_layers = nn.ModuleList([ConvBlock(in_chans, chans, drop_prob)])
+        ch = chans
+        for _ in range(num_pool_layers - 1):
+            self.down_sample_layers.append(ConvBlock(ch, ch * 2, drop_prob))
+            ch *= 2
+        self.conv = ConvBlock(ch, ch * 2, drop_prob)
+
+        self.up_conv = nn.ModuleList()
+        self.up_transpose_conv = nn.ModuleList()
+        for _ in range(num_pool_layers - 1):
+            self.up_transpose_conv.append(TransposeConvBlock(ch * 2, ch))
+            self.up_conv.append(ConvBlock(ch * 2, ch, drop_prob))
+            ch //= 2
+
+        self.up_transpose_conv.append(TransposeConvBlock(ch * 2, ch))
+        self.up_conv.append(
+            nn.Sequential(
+                ConvBlock(ch * 2, ch, drop_prob),
+                nn.Conv2d(ch, self.out_chans, kernel_size=1, stride=1),
+            )
+        
+        )
+
+
+    def forward(self, image: torch.Tensor, latent) -> torch.Tensor:
+        """
+        Args:
+            image: Input 4D tensor of shape `(N, in_chans, H, W)`.
+        Returns:
+            Output tensor of shape `(N, out_chans, H, W)`.
+        """
+        stack = []
+        output = image
+
+        # apply down-sampling layers
+        for layer in self.down_sample_layers:
+            output = layer(output)
+            stack.append(output)
+            output = F.avg_pool2d(output, kernel_size=2, stride=2, padding=0)
+
+        output = self.conv(output)
+
+        # apply up-sampling layers
+        for transpose_conv, conv in zip(self.up_transpose_conv, self.up_conv):
+            downsample_layer = stack.pop()
+            output = transpose_conv(output)
+
+            # reflect pad on the right/botton if needed to handle odd input dimensions
+            padding = [0, 0, 0, 0]
+            if output.shape[-1] != downsample_layer.shape[-1]:
+                padding[1] = 1  # padding right
+            if output.shape[-2] != downsample_layer.shape[-2]:
+                padding[3] = 1  # padding bottom
+            if torch.sum(torch.tensor(padding)) != 0:
+                output = F.pad(output, padding, "reflect")
+
+            output = torch.cat([output, downsample_layer], dim=1)
+            output = conv(output)
+
+        output = self.tanh(output)
+        return output
+
+class switchable_Unet(nn.Module):
+    """
+    PyTorch implementation of a Switchable U-Net model.
+    O. Ronneberger, P. Fischer, and Thomas Brox. U-net: Convolutional networks
+    for biomedical image segmentation. In International Conference on Medical
+    image computing and computer-assisted intervention, pages 234–241.
+    Springer, 2015.
+    """
+
+    def __init__(
+        self,
+        in_chans: int=1,
+        out_chans: int=1,
+        chans: int = 32,
+        num_pool_layers: int = 4,
+        drop_prob: float = 0.0,
+        mapping_layers: int = 2,
+    ):
+        """
+        Args:
+            in_chans: Number of channels in the input to the U-Net model.
+            out_chans: Number of channels in the output to the U-Net model.
+            chans: Number of output channels of the first convolution layer.
+            num_pool_layers: Number of down-sampling and up-sampling layers.
+            drop_prob: Dropout probability.
+        """
+        super().__init__()
+
+        self.in_chans = in_chans
+        self.out_chans = out_chans
+        self.chans = chans
+        self.num_pool_layers = num_pool_layers
+        self.drop_prob = drop_prob
+        self.tanh = nn.Tanh()
+        # mapper
+        #mapper only knows the direction of translation
+        self.mapper = Mapper(latent_size=2, dlatent_size=512, mapping_layers=mapping_layers)
+
+        self.down_sample_layers = nn.ModuleList([ConvBlock(in_chans, chans, drop_prob)])
+        self.down_AdaIn_layers = nn.ModuleList([AdaIN(channels=chans, dlatent_size=512, use_instance_norm=True,use_styles=True)])
+        ch = chans
+        for _ in range(num_pool_layers - 1):
+            self.down_sample_layers.append(ConvBlock(ch, ch * 2, drop_prob))
+            self.down_AdaIn_layers.append(AdaIN(channels=ch * 2, dlatent_size=512, use_instance_norm=True,use_styles=True))
+            ch *= 2
+
+        self.conv = ConvBlock(ch, ch * 2, drop_prob)
+        self.conv_AdaIn = AdaIN(channels=ch * 2, dlatent_size=512, use_instance_norm=True,use_styles=True)
+        self.up_conv = nn.ModuleList()
+        self.up_conv_AdaIn = nn.ModuleList()
+        self.up_transpose_conv = nn.ModuleList()
+        self.up_transpose_conv_AdaIn = nn.ModuleList()
+        for _ in range(num_pool_layers - 1):
+            self.up_transpose_conv.append(TransposeConvBlock(ch * 2, ch))
+            self.up_transpose_conv_AdaIn.append(AdaIN(channels=ch, dlatent_size=512, use_instance_norm=True,use_styles=True))
+            self.up_conv.append(ConvBlock(ch * 2, ch, drop_prob))
+            self.up_conv_AdaIn.append(AdaIN(channels=ch, dlatent_size=512, use_instance_norm=True,use_styles=True))
+            ch //= 2
+
+        self.up_transpose_conv.append(TransposeConvBlock(ch * 2, ch))
+        self.up_transpose_conv_AdaIn.append(AdaIN(channels=ch, dlatent_size=512, use_instance_norm=True,use_styles=True))
+        self.up_conv.append(
+            nn.Sequential(
+                ConvBlock(ch * 2, ch, drop_prob),
+                nn.Conv2d(ch, self.out_chans, kernel_size=1, stride=1),
+            )
+        
+        
+        )
+        self.up_conv_AdaIn.append(AdaIN(channels=self.out_chans, dlatent_size=512, use_instance_norm=True,use_styles=True))
+
+    def forward(self, image: torch.Tensor, task_info) -> torch.Tensor:
+        """
+        Args:
+            image: Input 4D tensor of shape `(N, in_chans, H, W)`.
+        Returns:
+            Output tensor of shape `(N, out_chans, H, W)`.
+        """
+        stack = []
+        output = image
+        latent = self.mapper(task_info)
+        # apply down-sampling layers
+        for layer,adain in zip(self.down_sample_layers,self.down_AdaIn_layers):
+            output = layer(output)
+            output = adain(output,latent)
+            stack.append(output)
+            output = F.avg_pool2d(output, kernel_size=2, stride=2, padding=0)
+
+        output = self.conv(output)
+        output = self.conv_AdaIn(output,latent)
+        # print(output.size())
+        # apply up-sampling layers
+        for transpose_conv, transpose_conv_adain, conv, conv_adain in zip(self.up_transpose_conv,self.up_transpose_conv_AdaIn, self.up_conv,self.up_conv_AdaIn):
+            
+            downsample_layer = stack.pop()
+            output = transpose_conv(output)
+            output = transpose_conv_adain(output,latent)
+
+
+            # reflect pad on the right/botton if needed to handle odd input dimensions
+            padding = [0, 0, 0, 0]
+            if output.shape[-1] != downsample_layer.shape[-1]:
+                padding[1] = 1  # padding right
+            if output.shape[-2] != downsample_layer.shape[-2]:
+                padding[3] = 1  # padding bottom
+            if torch.sum(torch.tensor(padding)) != 0:
+                output = F.pad(output, padding, "reflect")
+
+            output = torch.cat([output, downsample_layer], dim=1)
+            output = conv(output)
+            output = conv_adain(output,latent)
+            
+            
+
+        output = self.tanh(output)
+        return output

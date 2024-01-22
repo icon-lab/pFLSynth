@@ -31,6 +31,8 @@ class BaseOptions():
         self.parser.add_argument('--dataset_mode', type=str, default='unaligned', help='chooses how datasets are loaded. [unaligned | aligned | single]')
         self.parser.add_argument('--model', type=str, default='pFLSynth',
                                  help='chooses which model to use. cycle_gan, pix2pix, test')
+        self.parser.add_argument('--down_samp', type=int, default=4, help='to downsample or not to')
+
         self.parser.add_argument('--which_direction', type=str, default='AtoB', help='AtoB or BtoA')
         self.parser.add_argument('--nThreads', default=2, type=int, help='# threads for loading data')
         self.parser.add_argument('--checkpoints_dir', type=str, default='./checkpoints', help='models are saved here')
