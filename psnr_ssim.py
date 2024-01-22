@@ -50,7 +50,8 @@ def calculate_metrics_across_subjects(fake_dir, num_im, num_im2, normalize=True)
     std_ssim = np.std(ssim_vals)
 
     return mean_psnr, std_psnr, mean_ssim, std_ssim
-    
+
+#   Example usage:
 # python3 evaluation.py --fake_dir /auto/data2/odalmaz/FedSynth/2_common_bidirectional/results/T1_T2_pFLSynth_common_bidirectional_true/test_latest_IXI_t1_t2/images/ --gpu_ids 1
 
 if __name__ == '__main__':

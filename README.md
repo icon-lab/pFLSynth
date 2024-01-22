@@ -227,6 +227,20 @@ python3 test.py \
 
 # Evaluation
 
+After conducting inference using the `test.sh` script, the generated images are saved in specific directories. To evaluate these results, follow the steps below to locate and analyze the generated images.
+
+### Locating the Output Images
+
+The output images from inference are stored in directories with the following naming convention:
+
+```bash
+/results/<name>/<test_epoch>_<task_name>/images/
+```
+
+- `<name>`: Represents the experiment name or setup.
+- `<test_epoch>`: Indicates the specific epoch of the test, typically 'latest' or a specific epoch number.
+- `<task_name>`: Describes the task for which inference was run (e.g., 't1_t2').
+
 ## PSNR/SSIM Calculation
 
 ### Overview
@@ -237,7 +251,7 @@ To use the PSNR/SSIM calculation script, you need to specify the directory conta
 
 Command:
 ```bash
-python psnr_ssim_script.py --fake_dir <path_to_fake_images_directory> [--normalize <0 or 1>]
+python psnr_ssim.py --fake_dir <path_to_results_directory> [--normalize <0 or 1>]
 ```
 ## FID Calculation
 
@@ -249,7 +263,7 @@ To calculate FID, you need two sets of images: real images and generated (fake) 
 
 Command:
 ```bash
-python fid_script.py --p1 <path_to_fake_images_directory> [--gpu_ids <gpu_id>] [--multiprocessing] [--batch-size <batch_size>]
+python fid.py --p1 <path_to_results_directory> [--gpu_ids <gpu_id>] [--multiprocessing] [--batch-size <batch_size>]
 ```
 
 
