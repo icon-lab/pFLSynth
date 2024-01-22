@@ -112,50 +112,145 @@ This will process each NIfTI file, converting it into a series of 2D PNG images,
 - It is advisable to have a backup of the original NIfTI files before running this script, as it involves reading and processing significant amounts of data.
 - Ensure that the input and output directories are set correctly to avoid any unintended data loss.
 
+## Combining Contrast Images into a Single Image
 
-<!-- ## Dataset
-You should structure your aligned dataset in the following way:
-```
-/Datasets/BRATS/
-  ├── T1_T2_FLAIR
-```
-```
-/Datasets/BRATS/T1_T2_FLAIR/
-  ├── train
-  ├── val  
-  ├── test   
-```
-```
-/Datasets/BRATS/T1_T2_FLAIR/train/
-  ├── 0.png
-  ├── 1.png
-  ├── 2.png
-  ├── ...
-```
-For instance, "0.png" looks like this:
+Following the preprocessing steps, we combine the PNG images of individual contrasts (T1, T2, FLAIR) into a single composite image where each contrast is represented in a separate color channel.
 
-<img src="0.png" width="600px"/>
+### Usage
 
-where in the left half T1- and T2-weighted images are in the Red and Green channels respectively, and in the right half FLAIR images are in the Green channel. -->
+To perform the combination of contrast images, run the `combine_contrasts.py` script, which takes the T1, T2, and FLAIR images and combines them into a single RGB image with transparency. The resulting images are saved to the specified output directory.
+
+1. Set the input directory where individual contrast PNG images are located:
+
+    ```python
+    # TODO: Set the path where the PNG images are stored
+    input_directory = "/auto/data2/umirza/OASIS_png/"
+    ```
+
+2. Set the output directory where the combined images will be saved:
+
+    ```python
+    # TODO: Set the path where the combined images will be saved
+    output_directory = "/auto/data2/umirza/OASIS_full/"
+    ```
+
+3. Run the script:
+
+    ```bash
+    python combine_contrasts.py
+    ```
+
+Each saved image will have T1, T2, and FLAIR contrasts combined, facilitating the visualization of differences between contrasts in the same slice.
+
+### Note
+
+- Ensure that each contrast directory within the input directory contains the same number of corresponding slices.
+- The script will create the output directory if it does not exist, and it will overwrite existing files with the same name without warning.
+
+
+# Training and Testing Models
+
 
 ## Federated training of pFLSynth
+To initiate the federated training of the pFLSynth model, use the provided shell script. This script encapsulates all the necessary parameters and configurations required for the training process. 
 
+To start training, simply execute:
 <br />
 
-```
-python3 /auto/data2/odalmaz/FedSynth/3_heteregeneous/github/fedsynth/train_pflsynth.py --gpu_ids 0 --dataroot Datasets/IXI/T1_T2__PD/ --dataroot2 Datasets/BRATS/T1_T2__FLAIR/ --dataroot3 Datasets/MIDAS/T1_T2/ --dataroot4 Datasets/OASIS/T1_T2__FLAIR/ --name pFLSynth_experimental_setup_3 --model pflsynth_model --which_model_netG personalized_generator --which_direction AtoB --lambda_A 100 --dataset_mode aligned --norm batch --n_clients 4 --pool_size 0 --output_nc 1 --input_nc 2 --niter 75 --niter_decay 75 --save_epoch_freq 5 --checkpoints_dir checkpoints/ --federated_learning 1
+```bash
+bash train_pflsynth.sh
 ```
 
 <br />
 <br />
 
-## Inference with personalized generator
+Ensure that train_pflsynth.sh is properly configured with the right paths and parameters specific to your dataset and training environment. 
+## Inference
 
 
+```bash
+bash test.sh
 ```
-python3 /auto/data2/odalmaz/FedSynth/3_heteregeneous/fedsynth/test.py --dataroot /auto/data2/odalmaz/Datasets/IXI/T1_T2__PD/ --name pFLSynth_experimental_setup_3 --gpu_ids 0 --dataset_mode aligned --model pflsynth_model --which_model_netG personalized_generator --which_direction AtoB --norm batch --output_nc 1 --input_nc 2 --checkpoints_dir checkpoints/ --phase test --how_many 10000 --serial_batches --results_dir results/ --dataset_name ixi --save_folder_name IXI --n_clients 4 --task_name t1_t2
+
+## Training Competing Methods
+
+This repository includes several scripts for training different competing methods in our framework. These methods can be easily executed using the provided shell scripts.
+
+## Usage
+
+To train a specific competing method, run the corresponding shell script from the command line. Each script is named according to the method it trains. Below are the available methods and their respective script names:
+For example, to train the FedBN method:
+```bash
+bash train_fedbn.sh
 ```
-You can specify the site and task during inference by modifying the dataroot to match the site and changing the task name. For example, if you would like to perform inference for FLAIR->T2 task in BRATS, specify --dataroot Datasets/BRATS/T1_T2__FLAIR/ and --task_name flair_t2
+
+# Performing Inference with Competing Methods
+
+This repository includes a common script (`test.sh`) for performing inference with various competing methods, including pFLSynth. To run inference with a specific method, you'll need to modify the script slightly for each method.
+
+## Usage
+
+The `test.sh` script is designed to be easily adaptable for different methods. To use it for a particular competing method, you will need to update certain arguments in the script:
+
+1. **Model Name (`--name`)**: Specify the name of the experiment or model. This should match the name used during training.
+2. **Model Type (`--model`)**: Indicate the model type, which corresponds to the competing method being tested.
+3. **Generator Model (`--which_model_netG`)**: Choose the appropriate generator model for the method.
+4. **Task Name (`--task_name`)** (optional): If applicable, specify the task name.
+
+### Example for FedBN
+
+For instance, to test with the "Method XYZ," you would modify the script as follows:
+
+```bash
+python3 test.py \
+--dataroot /auto/data2/odalmaz/Datasets/IXI/T1_T2__PD/ \
+--name FedBN_variable_setup_exp \
+--gpu_ids 0 \
+--dataset_mode aligned \
+--model federated_synthesis \
+--which_model_netG resnet_generator \
+--which_direction AtoB \
+--norm batch \
+--output_nc 1 \
+--input_nc 2 \
+--checkpoints_dir checkpoints/ \
+--phase test \
+--how_many 10000 \
+--serial_batches \
+--results_dir results/ \
+--dataset_name ixi \
+--save_folder_name IXI \
+--n_clients 4 \
+--task_name t1_t2
+```
+
+# Evaluation
+
+## PSNR/SSIM Calculation
+
+### Overview
+This script calculates the Peak Signal-to-Noise Ratio (PSNR) and Structural Similarity Index (SSIM) between pairs of real and synthesized images.
+
+### Usage
+To use the PSNR/SSIM calculation script, you need to specify the directory containing the real and fake images generated by your model. The script assumes the presence of corresponding real images in the same directory.
+
+Command:
+```bash
+python psnr_ssim_script.py --fake_dir <path_to_fake_images_directory> [--normalize <0 or 1>]
+```
+## FID Calculation
+
+### Overview
+The Frechet Inception Distance (FID) is a widely used metric to assess the quality of images generated by GANs. It compares the distribution of generated images to that of real images.
+
+### Usage
+To calculate FID, you need two sets of images: real images and generated (fake) images. The script assumes the presence of corresponding real images in the same directory.
+
+Command:
+```bash
+python fid_script.py --p1 <path_to_fake_images_directory> [--gpu_ids <gpu_id>] [--multiprocessing] [--batch-size <batch_size>]
+```
+
 
 # Citation
 Preliminary versions of pFLSynth are presented in [MICCAI DeCaF](https://link.springer.com/chapter/10.1007/978-3-031-18523-6_8),  [NeurIPS Medical Imaging Meets](https://www.cse.cuhk.edu.hk/~qdou/public/medneurips2022/103.pdf) (Oral), and IEEE ISBI 2023.
