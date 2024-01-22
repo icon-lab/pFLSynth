@@ -6,6 +6,7 @@ One Model to Unite Them All: Personalized Federated Learning of Multi-Contrast M
 <img src="main.png" width="600px"/>
 <img src="generator.png" width="600px"/>
 <img src="pna.png" width="600px"/>
+
 ## Dependencies
 ```
 python>=3.6.9
