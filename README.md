@@ -175,7 +175,7 @@ bash test.sh
 
 ## Training Competing Methods
 
-This repository includes several scripts for training different competing methods in our framework. These methods can be easily executed using the provided shell scripts.
+This repository includes several scripts for training different competing methods, including centralized benchmarks, in our framework. These methods can be easily executed using the provided shell scripts.
 
 ## Usage
 
