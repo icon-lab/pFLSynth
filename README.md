@@ -179,11 +179,24 @@ This repository includes several scripts for training different competing method
 
 ## Usage
 
-To train a specific competing method, run the corresponding shell script from the command line. Each script is named according to the method it trains. Below are the available methods and their respective script names:
+To train a specific competing method, run the corresponding shell script from the command line. Each script is named according to the method it trains. 
 For example, to train the FedBN method:
 ```bash
 bash train_fedbn.sh
 ```
+
+Below are the available federated learning (FL) baselines and their respective script names:
+FedBN: train_fedbn.sh
+FedMRI: train_fedmri.sh
+FedGAN: train_fedgan.sh
+FedMed: train_fedmed.sh
+FedMM: train_fedmm.sh
+FedCycle: train_fedcycle.sh
+
+Below are the available centralized benchmarks and their respective script names:
+pFLSynth_cent: train_pflsynth_cent.sh
+pGAN_cent: train_pgan_cent.sh
+pix2pix_cent: train_pix2pix_cent.sh
 
 # Performing Inference with Competing Methods
 
