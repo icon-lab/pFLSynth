@@ -10,6 +10,9 @@ def create_model(opt):
     elif opt.model == 'switchable_cycle_gan':
         from .switchable_cycle_gan_model import SwitchableCycleGANModel
         model = SwitchableCycleGANModel()
+    elif opt.model == 'centralized_model':
+        from .centralized_model import centralized_model
+        model = centralized_model()
     else:
         raise NotImplementedError('model [%s] not implemented.' % opt.model)
     model.initialize(opt)

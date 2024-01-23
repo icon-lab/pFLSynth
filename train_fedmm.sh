@@ -1,9 +1,9 @@
 python3 train_global_aggregation.py \
 --gpu_ids 2 \
---dataroot /auto/data2/odalmaz/Datasets/IXI/T1_T2__PD/ \
---dataroot2 /auto/data2/odalmaz/Datasets/BRATS/T1_T2__FLAIR/ \
---dataroot3 /auto/data2/odalmaz/FedSynth/Datasets/MIDAS/T1_T2/ \
---dataroot4 /auto/data2/odalmaz/FedSynth/Datasets/OASIS/T1_T2__FLAIR/ \
+--dataroot Datasets/IXI/T1_T2__PD/ \
+--dataroot2 Datasets/BRATS/T1_T2__FLAIR/ \
+--dataroot3 Datasets/MIDAS/T1_T2/ \
+--dataroot4 Datasets/OASIS/T1_T2__FLAIR/ \
 --name T1_T2_FedMM_experimental_setup_2 \
 --model fedmm \
 --which_model_netG unet_fedmm \
@@ -15,8 +15,8 @@ python3 train_global_aggregation.py \
 --pool_size 0 \
 --output_nc 1 \
 --input_nc 2 \
---niter 50 \
---niter_decay 50 \
+--niter 75 \
+--niter_decay 75 \
 --save_epoch_freq 5 \
---checkpoints_dir /auto/data2/odalmaz/FedSynth/3_heteregeneous/checkpoints/ \
+--checkpoints_dir checkpoints/ \
 --federated_learning 1

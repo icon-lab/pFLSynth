@@ -73,7 +73,7 @@ Here is a demo of how to configure and run the `register_sequences.py` script.
 4. Run the script:
 
     ```bash
-    python /preprocess/register_sequences.py
+    python preprocess/register_sequences.py
     ```
 
 The script will process each subject sequentially, registering the specified sequences to the T1-weighted images and saving the results in the output directory.
@@ -103,7 +103,7 @@ To use this script, you need to specify the input directory (where the NIfTI fil
 3. Run the script:
 
     ```bash
-    python /preprocess/process_nii_to_png.py
+    python preprocess/process_nii_to_png.py
     ```
 
 This will process each NIfTI file, converting it into a series of 2D PNG images, each representing a slice from the 3D MRI data. The script organizes these PNG images into folders corresponding to their original NIfTI file names.
@@ -138,7 +138,7 @@ To perform the combination of contrast images, run the `combine_contrasts.py` sc
 3. Run the script:
 
     ```bash
-    python /preprocess/combine_contrasts.py
+    python preprocess/combine_contrasts.py
     ```
 
 Each saved image will have T1, T2, and FLAIR contrasts combined, facilitating the visualization of differences between contrasts in the same slice.
@@ -250,7 +250,7 @@ To use the PSNR/SSIM calculation script, you need to specify the directory conta
 
 Command:
 ```bash
-python /evaluation/psnr_ssim.py --fake_dir <path_to_results_directory> [--normalize <0 or 1>]
+python evaluation/psnr_ssim.py --fake_dir <path_to_results_directory> [--normalize <0 or 1>]
 ```
 ## FID Calculation
 
@@ -264,7 +264,7 @@ To calculate FID, you need to specify the directory containing the real and fake
 
 Command:
 ```bash
-python /evaluation/fid.py --p1 <path_to_results_directory> [--gpu_ids <gpu_id>] [--multiprocessing] [--batch-size <batch_size>]
+python evaluation/fid.py --p1 <path_to_results_directory> [--gpu_ids <gpu_id>] [--multiprocessing] [--batch-size <batch_size>]
 ```
 
 

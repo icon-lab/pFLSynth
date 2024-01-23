@@ -1,12 +1,12 @@
-python3 train_global_aggregation.py \
---gpu_ids 3 \
+python3 train_centralized.py \
+--gpu_ids 0 \
 --dataroot Datasets/IXI/T1_T2__PD/ \
 --dataroot2 Datasets/BRATS/T1_T2__FLAIR/ \
 --dataroot3 Datasets/MIDAS/T1_T2/ \
 --dataroot4 Datasets/OASIS/T1_T2__FLAIR/ \
---name FedMRI_variable_setup_exp \
---model federated_synthesis \
---which_model_netG unet_generator \
+--name Centralized_pFLSynth_variable_setup_exp \
+--model centralized_model  \
+--which_model_netG personalized_generator \
 --which_direction AtoB \
 --lambda_A 100 \
 --dataset_mode aligned \
@@ -17,5 +17,4 @@ python3 train_global_aggregation.py \
 --niter 75 \
 --niter_decay 75 \
 --save_epoch_freq 5 \
---checkpoints_dir checkpoints/ \
---federated_learning 1
+--checkpoints_dir checkpoints/

@@ -1,9 +1,9 @@
-python3 personalized_batch_norm.py \
+python3 train_personalized_batch_norm.py \
 --gpu_ids 3 \
---dataroot /auto/data2/odalmaz/Datasets/IXI/T1_T2__PD/ \
---dataroot2 /auto/data2/odalmaz/Datasets/BRATS/T1_T2__FLAIR/ \
---dataroot3 /auto/data2/odalmaz/FedSynth/Datasets/MIDAS/T1_T2/ \
---dataroot4 /auto/data2/odalmaz/FedSynth/Datasets/OASIS/T1_T2__FLAIR/ \
+--dataroot Datasets/IXI/T1_T2__PD/ \
+--dataroot2 Datasets/BRATS/T1_T2__FLAIR/ \
+--dataroot3 Datasets/MIDAS/T1_T2/ \
+--dataroot4 Datasets/OASIS/T1_T2__FLAIR/ \
 --name FedBN_variable_setup_exp \
 --model federated_synthesis \
 --which_model_netG resnet_generator \

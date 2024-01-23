@@ -1,9 +1,9 @@
 python3 train_global_aggregation.py \
 --gpu_ids 3 \
---dataroot /auto/data2/odalmaz/Datasets/IXI/T1_T2__PD/ \
---dataroot2 /auto/data2/odalmaz/Datasets/BRATS/T1_T2__FLAIR/ \
---dataroot3 /auto/data2/odalmaz/FedSynth/Datasets/MIDAS/T1_T2/ \
---dataroot4 /auto/data2/odalmaz/FedSynth/Datasets/OASIS/T1_T2__FLAIR/ \
+--dataroot Datasets/IXI/T1_T2__PD/ \
+--dataroot2 Datasets/BRATS/T1_T2__FLAIR/ \
+--dataroot3 Datasets/MIDAS/T1_T2/ \
+--dataroot4 Datasets/OASIS/T1_T2__FLAIR/ \
 --name FedCycle_variable_setup_exp \
 --model switchable_cycle_gan \
 --which_model_netG switchable_unet \

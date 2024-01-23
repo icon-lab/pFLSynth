@@ -1,0 +1,20 @@
+python3 train_centralized.py \
+--gpu_ids 0 \
+--dataroot /auto/data2/odalmaz/Datasets/IXI/T1_T2__PD/ \
+--dataroot2 /auto/data2/odalmaz/Datasets/BRATS/T1_T2__FLAIR/ \
+--dataroot3 /auto/data2/odalmaz/FedSynth/Datasets/MIDAS/T1_T2/ \
+--dataroot4 /auto/data2/odalmaz/FedSynth/Datasets/OASIS/T1_T2__FLAIR/ \
+--name Centralized_pix2pix_variable_setup_exp \
+--model centralized_model  \
+--which_model_netG unet_generator \
+--which_direction AtoB \
+--lambda_A 100 \
+--dataset_mode aligned \
+--norm batch \
+--pool_size 0 \
+--output_nc 1 \
+--input_nc 2 \
+--niter 50 \
+--niter_decay 50 \
+--save_epoch_freq 5 \
+--checkpoints_dir checkpoints/
