@@ -186,17 +186,19 @@ bash train_fedbn.sh
 ```
 
 Below are the available federated learning (FL) baselines and their respective script names:
-FedBN: train_fedbn.sh
-FedMRI: train_fedmri.sh
-FedGAN: train_fedgan.sh
-FedMed: train_fedmed.sh
-FedMM: train_fedmm.sh
-FedCycle: train_fedcycle.sh
+
+- FedBN: train_fedbn.sh
+- FedMRI: train_fedmri.sh
+- FedGAN: train_fedgan.sh
+- FedMed: train_fedmed.sh
+- FedMM: train_fedmm.sh
+- FedCycle: train_fedcycle.sh
 
 Below are the available centralized benchmarks and their respective script names:
-pFLSynth_cent: train_pflsynth_cent.sh
-pGAN_cent: train_pgan_cent.sh
-pix2pix_cent: train_pix2pix_cent.sh
+
+- pFLSynth_cent: train_pflsynth_centralized.sh
+- pGAN_cent: train_pgan_centralized.sh
+- pix2pix_cent: train_pix2pix_centralized.sh
 
 # Performing Inference with Competing Methods
 
